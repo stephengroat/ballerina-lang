@@ -46,6 +46,7 @@ public enum NodeKind {
     VARIABLE,
     WORKER,
     XMLNS,
+    TESTABLE_PACKAGE,
 
     /* Expressions */
     DOCUMENTATION_ATTRIBUTE,
