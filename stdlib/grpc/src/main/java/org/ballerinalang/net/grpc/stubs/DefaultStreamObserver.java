@@ -81,7 +81,7 @@ public class DefaultStreamObserver implements StreamObserver {
         CallableUnitCallback callback = new GrpcCallableUnitCallBack(null);
         Executor.submit(resource, callback, null, null, signatureParams);
     }
-    
+
     @Override
     public void onError(Message error) {
         Resource onError = resourceMap.get(GrpcConstants.ON_ERROR_RESOURCE);

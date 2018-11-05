@@ -22,6 +22,7 @@ import com.google.protobuf.Descriptors;
 import org.ballerinalang.bre.bvm.CallableUnitCallback;
 import org.ballerinalang.connector.api.Executor;
 import org.ballerinalang.connector.api.Resource;
+import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.net.grpc.GrpcCallableUnitCallBack;
 import org.ballerinalang.net.grpc.GrpcConstants;
 import org.ballerinalang.net.grpc.Message;
@@ -106,6 +107,11 @@ public class StreamingServerCallHandler extends ServerCallHandler {
         @Override
         public void onMessage(Message request) {
             requestObserver.onNext(request);
+        }
+
+        @Override
+        public void onMessage(BValue message) {
+            // do nothing. This needs to be removed after implementing the response part using ballerina APIs.
         }
 
         @Override

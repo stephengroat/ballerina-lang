@@ -299,8 +299,7 @@ public class Message {
         return payload.toString();
     }
 
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
-            throws java.io.IOException {
+    public void writeTo(com.google.protobuf.CodedOutputStream output) throws java.io.IOException {
         Descriptors.Descriptor messageDescriptor = getDescriptor();
         for (Descriptors.FieldDescriptor fieldDescriptor : messageDescriptor.getFields()) {
             if (fields.containsKey(fieldDescriptor.getName())) {

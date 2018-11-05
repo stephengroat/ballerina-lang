@@ -19,8 +19,16 @@ package org.ballerinalang.net.grpc;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
+import org.ballerinalang.connector.api.BLangConnectorSPIUtil;
+import org.ballerinalang.model.values.BMap;
+import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.net.grpc.exception.ServerRuntimeException;
 import org.ballerinalang.net.grpc.listener.ServerCallHandler;
+import org.ballerinalang.stdlib.io.utils.IOConstants;
+import org.ballerinalang.stdlib.io.utils.ProtoByteChannel;
+import org.ballerinalang.stdlib.io.utils.ProtoWrapper;
+import org.ballerinalang.util.codegen.ProgramFile;
+import org.ballerinalang.util.program.BLangFunctions;
 import org.wso2.transport.http.netty.contract.ServerConnectorException;
 
 import java.io.IOException;
@@ -31,6 +39,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.ballerinalang.net.grpc.GrpcConstants.MESSAGE_ENCODING;
+import static org.ballerinalang.net.grpc.GrpcConstants.MESSAGE_HEADERS;
+import static org.ballerinalang.net.grpc.GrpcConstants.READABLE_PROTO_CHANNEL;
 
 /**
  * Encapsulates a single call received from a remote client.
@@ -62,18 +72,20 @@ public final class ServerCall {
     private boolean messageSent;
     private Compressor compressor;
     private final String messageAcceptEncoding;
+    private ProgramFile programFile;
 
     private DecompressorRegistry decompressorRegistry;
     private CompressorRegistry compressorRegistry;
 
-    ServerCall(InboundMessage inboundMessage, OutboundMessage outboundMessage, MethodDescriptor
-            method, DecompressorRegistry decompressorRegistry, CompressorRegistry compressorRegistry) {
+    ServerCall(InboundMessage inboundMessage, OutboundMessage outboundMessage, MethodDescriptor method,
+            DecompressorRegistry decompressorRegistry, CompressorRegistry compressorRegistry, ProgramFile programFile) {
         this.inboundMessage = inboundMessage;
         this.outboundMessage = outboundMessage;
         this.method = method;
         this.decompressorRegistry = decompressorRegistry;
         this.compressorRegistry = compressorRegistry;
         this.messageAcceptEncoding = inboundMessage.getHeader(MESSAGE_ACCEPT_ENCODING);
+        this.programFile = programFile;
     }
 
     public void sendHeaders(HttpHeaders headers) {
@@ -207,9 +219,22 @@ public final class ServerCall {
                 return;
             }
             try {
-                Message request = call.method.parseRequest(message);
-                request.setHeaders(call.inboundMessage.getHeaders());
-                listener.onMessage(request);
+                ProtoByteChannel byteChannel = new ProtoByteChannel(message);
+                ProtoWrapper protoByteChannel = new ProtoWrapper(byteChannel);
+
+                BMap<String, BValue> byteChannelObject = BLangConnectorSPIUtil
+                        .createObject(call.programFile, IOConstants.IO_PACKAGE, READABLE_PROTO_CHANNEL);
+                byteChannelObject.addNativeData(IOConstants.BYTE_CHANNEL_NAME, protoByteChannel);
+                BMap<String, BValue> protoChannel = BLangConnectorSPIUtil
+                        .createObject(call.programFile, IOConstants.IO_PACKAGE, READABLE_PROTO_CHANNEL,
+                                byteChannelObject);
+                BValue[] record = BLangFunctions.invokeCallable(call.programFile.getEntryPackage().getFunctionInfo(
+                        "parse" + this.call.method.schemaDescriptor.getInputType().getFullName().split("\\.")[1]),
+                        new BValue[] { protoChannel });
+                HttpHeaders headers = call.inboundMessage.getHeaders();
+                BValue requestMessage = record[0];
+                ((BMap) requestMessage).addNativeData(MESSAGE_HEADERS, headers);
+                listener.onMessage(requestMessage);
             } catch (Exception ex) {
                 MessageUtils.closeQuietly(message);
                 throw new ServerRuntimeException(ex);

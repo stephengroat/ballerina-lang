@@ -220,9 +220,9 @@ public abstract class ServerCallHandler {
         Executor.submit(resource, callback, null, null, signatureParams);
     }
 
-    void onMessageInvoke(Resource resource, Message request, StreamObserver responseObserver) {
+    void onMessageInvoke(Resource resource, BValue request, StreamObserver responseObserver) {
         CallableUnitCallback callback = new GrpcCallableUnitCallBack(responseObserver, isEmptyResponse());
-        Executor.submit(resource, callback, null, null, computeMessageParams(resource, request, responseObserver));
+        Executor.submit(resource, callback, null, null, computeSignatureParams(resource, request, responseObserver));
     }
 
     BValue[] computeMessageParams(Resource resource, Message request, StreamObserver responseObserver) {
@@ -236,6 +236,23 @@ public abstract class ServerCallHandler {
         BValue requestParam = getRequestParameter(resource, request, (headerStruct != null));
         if (requestParam != null) {
             signatureParams[1] = requestParam;
+        }
+        if (headerStruct != null) {
+            signatureParams[signatureParams.length - 1] = headerStruct;
+        }
+        return signatureParams;
+    }
+
+    private BValue[] computeSignatureParams(Resource resource, BValue request, StreamObserver responseObserver) {
+        List<ParamDetail> paramDetails = resource.getParamDetails();
+        BValue[] signatureParams = new BValue[paramDetails.size()];
+        signatureParams[0] = getConnectionParameter(resource, responseObserver);
+        BMap<String, BValue> headerStruct = getHeaderStruct(resource);
+        if (headerStruct != null) {
+            headerStruct.addNativeData(MESSAGE_HEADERS, ((BMap) request).getNativeData().get(MESSAGE_HEADERS));
+        }
+        if (request != null) {
+            signatureParams[1] = request;
         }
         if (headerStruct != null) {
             signatureParams[signatureParams.length - 1] = headerStruct;
@@ -261,6 +278,8 @@ public abstract class ServerCallHandler {
          * @param message a received request message.
          */
         void onMessage(Message message);
+
+        void onMessage(BValue message);
 
         /**
          * The client completed all message sending. However, the call may still be cancelled.

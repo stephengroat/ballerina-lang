@@ -79,7 +79,7 @@ public class Send extends BlockingNativeCallableUnit {
         StreamObserver responseObserver = MessageUtils.getResponseObserver(clientEndpoint);
         Descriptors.Descriptor outputType = (Descriptors.Descriptor) clientEndpoint.getNativeData(GrpcConstants
                 .RESPONSE_MESSAGE_DEFINITION);
-        
+
         if (responseObserver == null) {
             context.setError(MessageUtils.getConnectorError(new StatusRuntimeException(Status
                     .fromCode(Status.Code.INTERNAL.toStatus().getCode()).withDescription("Error while initializing " +
